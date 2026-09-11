@@ -1,11 +1,3 @@
-# 2주차 활동지 / Week 2 Worksheet
-
-**AI 협업 방식 비교 / Comparing two ways of working with AI**
-
-- 작성일 / Date: 2026-09-11
-- 참여자 / Present: 박재원, 박지성, 강태혁, 전시준
-- 결과보고서 / Report chapter: 6장 AI 활용과 판단
-- 최종 반영 / Feeds into: PROMPTS.md 첫 항목
 
 ---
 # 2주차 활동지 — 코딩 에이전트와 컨텍스트
