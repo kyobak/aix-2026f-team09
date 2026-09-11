@@ -99,6 +99,148 @@ B조 박재원 : [지시]
 > 
 > +)파일 자체를 클로드 코드에 추가
 
+B조 박지성 : [지시]
+메모 검색 기능 만들어줘. 제목이랑 본문에서 키워드로 찾을 수 있게.
+[지시]
+메모 검색 기능을 추가해줘. 제목과 본문에서 키워드로 검색된다.
+
+[규약]
+프로젝트 규약
+
+이 문서는 코드를 작성할 때 지켜야 할 규칙입니다.
+
+계층 분리
+
+- `routes.js`는 HTTP 요청과 응답만 다룹니다. SQL을 직접 쓰지 않습니다.
+- 데이터베이스 접근은 `service.js`에만 둡니다.
+
+응답 형식
+
+모든 응답은 다음 두 형태 중 하나입니다.
+
+{ "ok": true,  "data": ... }
+{ "ok": false, "error": "ERROR_CODE" }
+
+에러 코드는 대문자와 밑줄로 씁니다. (예: `MEMO_NOT_FOUND`)
+
+명명 규칙
+
+- 함수명은 동사로 시작합니다. `list`, `get`, `create`, `update`, `remove`
+- 데이터베이스 컬럼은 스네이크 케이스를 씁니다. `user_id`, `created_at`
+- 자바스크립트 변수는 카멜 케이스를 씁니다. `userId`, `createdAt`
+
+입력 검증
+
+- 사용자 입력은 반드시 검증합니다.
+- 검증에 실패하면 400과 함께 `{ ok: false, error }` 를 반환합니다.
+
+권한
+
+- 모든 조회와 수정은 **본인 소유 데이터로 한정**합니다.
+- 모든 쿼리에 `user_id` 조건을 포함합니다.
+
+[근거]
+-- memo-seed 데이터베이스 스키마
+
+CREATE TABLE users (
+  id         INTEGER PRIMARY KEY,
+  email      TEXT NOT NULL UNIQUE,
+  name       TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE memos (
+  id         INTEGER PRIMARY KEY,
+  user_id    INTEGER NOT NULL,
+  title      TEXT NOT NULL,
+  body       TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX idx_memos_user ON memos(user_id);
+
+const db = require('./db');
+
+/**
+ * 사용자의 메모 목록을 최신순으로 조회한다.
+ */
+function listMemos(userId) {
+  return db.all(
+    `SELECT id, title, created_at
+       FROM memos
+      WHERE user_id = ?
+      ORDER BY created_at DESC`,
+    [userId]
+  );
+}
+
+/**
+ * 메모 한 건을 조회한다. 본인 메모가 아니면 null을 반환한다.
+ */
+function getMemo(userId, memoId) {
+  return db.get(
+    `SELECT id, title, body, created_at
+       FROM memos
+      WHERE id = ? AND user_id = ?`,
+    [memoId, userId]
+  );
+}
+
+/**
+ * 메모를 생성한다.
+ */
+function createMemo(userId, title, body) {
+  return db.run(
+    `INSERT INTO memos (user_id, title, body, created_at)
+     VALUES (?, ?, ?, datetime('now'))`,
+    [userId, title, body]
+  );
+}
+
+module.exports = { listMemos, getMemo, createMemo };
+
+const express = require('express');
+const service = require('./service');
+
+const router = express.Router();
+
+// 메모 목록 조회
+router.get('/memos', async (req, res) => {
+  const memos = await service.listMemos(req.user.id);
+  res.json({ ok: true, data: memos });
+});
+
+// 메모 단건 조회
+router.get('/memos/:id', async (req, res) => {
+  const memo = await service.getMemo(req.user.id, req.params.id);
+
+  if (!memo) {
+    return res.status(404).json({ ok: false, error: 'MEMO_NOT_FOUND' });
+  }
+
+  res.json({ ok: true, data: memo });
+});
+
+// 메모 생성
+router.post('/memos', async (req, res) => {
+  const { title, body } = req.body;
+
+  if (!title || !body) {
+    return res.status(400).json({ ok: false, error: 'TITLE_AND_BODY_REQUIRED' });
+  }
+
+  const result = await service.createMemo(req.user.id, title, body);
+  res.status(201).json({ ok: true, data: { id: result.lastID } });
+});
+
+module.exports = router;
+
+[종료조건]
+- GET /memos/search?q=키워드 로 호출된다
+- 제목 또는 본문에 키워드가 포함된 메모만 반환한다
+- 본인 메모만 반환한다
+- q가 비어 있으면 400과 { ok: false, error } 를 반환한다
 ---
 
 ## 3. 결과 확인
@@ -124,7 +266,7 @@ B조 박재원 : [지시]
 |  4  | 권한 처리    | SQL과 `WHERE user_id = ?` 조건이 아예 없음                            |
 |  5  | 함수 명명 규칙 | `dateLabel`, `fullDateLabel`, `filteredNotes` 등이 동사로 시작하지 않음  |
 
-|B조| 확인 항목 | 결과 |
+|B조 : 박재원| 확인 항목 | 결과 |
 | :-: | :-- | :-- |
 | ① | 실행 성공까지 걸린 시간 | 45분 30초 |
 | ② | 없는 함수·컬럼을 지어낸 개수 | 0개 |
@@ -134,6 +276,18 @@ B조 박재원 : [지시]
 | ④ | 사람이 직접 고친 지점 | 1곳 |
 | | → 어디를 어떻게 | `LIKE` 패턴에 `ESCAPE` 처리를 추가했다. 종료조건에는 없는 항목이다. |
 | ⑤ | **본인 메모만 반환되는가** | 예 |
+
+|B조 : 박지성 | 확인 항목 | 결과 |
+| :-: | :-- | :-- |
+| ① | 실행 성공까지 걸린 시간 | 38 분 |
+| ② | 없는 함수·컬럼을 지어낸 개수 | 4 개 |
+| | → 지어낸 이름 | db.js, app.js, init.js, package.json |
+| ③ | `CONVENTIONS.md` 위반 개수 | 3개 |
+| | → 무엇을 어겼는가 | 1. init.js가 service.js 밖에서 SQL을 직접 실행 2. app.js가 사용자 식별값을 쿼리 파라미터에서 무검증으로 받음 3. app.js에 오류 처리기가 없어 예외 시 { ok, error } 대신 프로세스가 중단됨 |
+| ④ | 사람이 직접 고친 지점 | 6곳 |
+| | → 어디를 어떻게 | 1. service.js 수정 : searchMemos함수 추가 2. service.js 수정 : module.exports에 searchMemos포함 3. routes.js 수정 : Get /memos/search 추가 - /memos/:id위에 배치 4. db.js 추가 : Node내장 sqlite 래퍼 5. app.js  추가 : 서버 진입점, 임시 사용자 식별 6. init.js + package.json 추가 : 테이블 생성/샘플데이터, 의존성 정의  |
+| ⑤ | **본인 메모만 반환되는가** | 예 |
+
 
 
 ### ⑤번을 반드시 확인하세요
