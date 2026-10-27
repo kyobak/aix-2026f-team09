@@ -9,7 +9,8 @@
 
 손그림 사진을 올리고 링크하십시오 / Upload a photo and link it.
 
-![architecture](img/week-07-arch.png)
+<img width="1848" height="1306" alt="AI+X 아키텍처 다이어그램" src="https://github.com/user-attachments/assets/6c25adf4-074e-47ec-8671-6821a8474544" />
+
 
 
 | 계층 / Layer | 모듈·파일 / Modules | 의존하지 않는 것 / Does not depend on |
