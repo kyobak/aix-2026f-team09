@@ -1,4 +1,4 @@
-[week-07.md](https://github.com/user-attachments/files/33414007/week-07.md)
+[week-07 (1).md](https://github.com/user-attachments/files/34017363/week-07.1.md)
 # Week 07 팀 활동지 / Team Activity
 
 | 팀명 / Team | 작성일 / Date | 참여자 / Members |
